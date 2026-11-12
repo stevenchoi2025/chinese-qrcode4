@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <title>廣東話詞音 QR Code 產生器 v2</title>
+
+    <!-- 產生 QR Code 所需；使用時裝置須能連接互聯網 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            color-scheme: light;
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --green: #16a34a;
+            --green-dark: #15803d;
+            --red: #dc2626;
+            --yellow-bg: #fef9c3;
+            --yellow-border: #fde047;
+            --slate-50: #f8fafc;
+            --slate-100: #f1f5f9;
+            --slate-300: #cbd5e1;
+            --slate-500: #64748b;
+            --slate-700: #334155;
+            --slate-900: #0f172a;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            min-height: 100dvh;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang HK",
+                         "Noto Sans HK", "Microsoft JhengHei", sans-serif;
+            color: var(--slate-900);
+            background: linear-gradient(145deg, #eff6ff, var(--slate-50));
+        }
+
+        button, input, textarea, select { font: inherit; }
+
+        .card {
+            width: min(100%, 520px);
+            overflow: hidden;
+            background: white;
+            border-radius: 22px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+        }
+
+        .header {
+            padding: 24px 20px;
+            color: white;
+            text-align: center;
+            background: linear-gradient(135deg, var(--blue), #4f46e5);
+        }
+
+        .header h1 { margin: 0 0 8px; font-size: clamp(1.45rem, 5vw, 2rem); }
+        .header p { margin: 0; color: #dbeafe; line-height: 1.5; }
+
+        .content { display: grid; gap: 18px; padding: 22px; }
+        .field { display: grid; gap: 7px; }
+        .field label { font-weight: 700; color: var(--slate-700); }
+        .hint { margin: 0; color: var(--slate-500); font-size: 0.82rem; line-height: 1.5; }
+
+        input, textarea, select {
+            width: 100%;
+            border: 1px solid var(--slate-300);
+            border-radius: 13px;
+            padding: 12px 13px;
+            color: var(--slate-900);
+            background: white;
+            outline: none;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        textarea { min-height: 135px; resize: vertical; line-height: 1.6; }
+        .counter { justify-self: end; color: var(--slate-500); font-size: 0.8rem; }
+        .counter.near-limit { color: var(--red); font-weight: 700; }
+
+        .notice, .error, .success {
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.55;
+        }
+
+        .notice { color: #854d0e; background: var(--yellow-bg); border: 1px solid var(--yellow-border); }
+        .error { color: #991b1b; background: #fee2e2; border: 1px solid #fecaca; }
+        .success { color: #166534; background: #dcfce7; border: 1px solid #bbf7d0; }
+        .hidden { display: none !important; }
+
+        .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .button-row.single { grid-template-columns: 1fr; }
+
+        button, .button-link {
+            min-height: 48px;
+            border: 0;
+            border-radius: 13px;
+            padding: 12px 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+            font-weight: 800;
+            text-align: center;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform .12s ease, background .12s ease, opacity .12s ease;
+            touch-action: manipulation;
+        }
+
+        button:active, .button-link:active { transform: scale(.98); }
+        button:disabled { cursor: wait; opacity: .55; }
+        .green { background: var(--green); }
+        .green:hover { background: var(--green-dark); }
+        .blue { background: var(--blue); }
+        .blue:hover { background: var(--blue-dark); }
+        .grey { color: var(--slate-700); background: var(--slate-100); }
+        .grey:hover { background: #e2e8f0; }
+
+        .qr-panel {
+            display: grid;
+            gap: 14px;
+            justify-items: center;
+            padding: 18px;
+            border: 2px dashed var(--slate-300);
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        #qrcode {
+            max-width: 100%;
+            padding: 10px;
+            overflow: auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 16px rgba(15, 23, 42, .1);
+        }
+
+        #qrcode img, #qrcode canvas { display: block; max-width: 100%; height: auto !important; }
+
+        .listen-word {
+            padding: 26px 16px;
+            overflow-wrap: anywhere;
+            font-size: clamp(2rem, 11vw, 4.2rem);
+            font-weight: 900;
+            line-height: 1.35;
+            text-align: center;
+            color: var(--slate-900);
+            background: var(--slate-50);
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+        }
+
+        .play-large { min-height: 64px; font-size: 1.25rem; }
+        .listen-note { margin: 0; color: var(--slate-500); line-height: 1.6; text-align: center; }
+
+        .rate-box { display:grid; gap:8px; }
+        .rate-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+        .rate-row button { min-height:44px; padding:8px; font-size:.95rem; }
+        .rate-row button.active { color:white; background:var(--blue); }
+        .rate-label { text-align:center; color:var(--slate-700); font-weight:700; }
+        @media (max-width: 430px) {
+            body { padding: 10px; align-items: flex-start; }
+            .card { border-radius: 18px; }
+            .content { padding: 18px; }
+            .button-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <header class="header">
+            <h1 id="pageTitle">廣東話詞音 QR Code 🔊</h1>
+            <div style="margin-top:8px;font-size:.75rem;color:#dbeafe">語速調校版 v5</div>
+            <p id="pageSubtitle">輸入字詞，製作可供手機或平板掃描的語音 QR Code</p>
+        </header>
+
+        <!-- 製作模式 -->
+        <section id="creatorPanel" class="content">
+            <div id="publicUrlSection" class="field hidden">
+                <label for="publicUrlInput">已上載網頁的公開網址</label>
+                <input id="publicUrlInput" type="url" inputmode="url"
+                       placeholder="例如：https://你的帳戶.github.io/qr_code_mobile_v2.html">
+                <p class="hint">本機檔案不能直接被手機開啟。請把<strong>這一個 HTML 檔案</strong>上載至 GitHub Pages、Netlify Drop 或學校網站，再貼上該檔案的完整網址（須以 .html 結尾）。網址必須指向這一份檔案，否則手機掃描後會顯示「無法讀取字詞」。</p>
+            </div>
+
+            <div class="field">
+                <label for="voiceSelect">選擇試聽聲音</label>
+                <select id="voiceSelect">
+                    <option value="">正在載入裝置語音……</option>
+                </select>
+                <p class="hint">掃描後會優先使用相同聲音；若手機沒有該聲音，系統會自動改用手機內的廣東話聲音。</p>
+            </div>
+
+<div class="field rate-box">
+                <label>語音速度</label>
+                <div class="rate-row" data-rate-group="creator">
+                    <button type="button" class="grey" data-rate="0.6">🐢 很慢</button>
+                    <button type="button" class="grey" data-rate="0.75">慢</button>
+                    <button type="button" class="grey" data-rate="0.9">正常</button>
+                    <button type="button" class="grey" data-rate="1.15">快</button>
+                </div>
+                <div class="rate-row" style="grid-template-columns:1fr 2fr 1fr">
+                    <button type="button" class="grey" data-rate-step="-0.05">－ 慢一點</button>
+                    <div class="rate-label" data-rate-label>速度 0.90×</div>
+                    <button type="button" class="grey" data-rate-step="0.05">＋ 快一點</button>
+                </div>
+            </div>
+            <p class="hint" style="margin-top:-10px">所選速度會一併存入 QR Code；掃描者亦可自行再調校。</p>
+            <div class="field">
+                <label for="textInput">輸入字詞或短句（最多 500 字）</label>
+                <textarea id="textInput" maxlength="500" placeholder="例如：新聞報道"></textarea>
+                <span id="charCount" class="counter">0 / 500</span>
+            </div>
+
+            <div id="hostBanner" class="success hidden"></div>
+            <div id="messageBox" class="error hidden" role="alert"></div>
+
+            <div class="button-row">
+                <button id="previewButton" class="green" type="button">🔊 試聽詞音</button>
+                <button id="generateButton" class="blue" type="button">▦ 製作 QR Code</button>
+            </div>
+
+            <section id="qrContainer" class="qr-panel hidden" aria-live="polite">
+                <strong>請用手機或平板相機掃描</strong>
+                <div id="qrcode" aria-label="語音 QR Code"></div>
+                <p class="hint">掃描後，按「播放詞音」即可聆聽。手機瀏覽器通常不容許網頁自動播放聲音，必須由使用者按一下。</p>
+                <p class="hint" style="color:#991b1b;font-weight:700">列印一整套之前，請先用手機實際掃描這一個 QR Code 測試，確認可以發聲。</p>
+                <div class="button-row" style="width:100%">
+                    <a id="testLink" class="button-link grey" href="#" target="_blank" rel="noopener">開啟測試頁</a>
+                    <button id="downloadButton" class="grey" type="button">下載 QR 圖片</button>
+                </div>
+            </section>
+        </section>
+
+        <!-- 掃描後的播放模式 -->
+        <section id="listenerPanel" class="content hidden">
+            <div id="listenWord" class="listen-word"></div>
+            <button id="listenButton" class="green play-large" type="button">🔊 播放詞音</button>
+<div class="field rate-box">
+                <label>語音速度</label>
+                <div class="rate-row" data-rate-group="listener">
+                    <button type="button" class="grey" data-rate="0.6">🐢 很慢</button>
+                    <button type="button" class="grey" data-rate="0.75">慢</button>
+                    <button type="button" class="grey" data-rate="0.9">正常</button>
+                    <button type="button" class="grey" data-rate="1.15">快</button>
+                </div>
+                <div class="rate-row" style="grid-template-columns:1fr 2fr 1fr">
+                    <button type="button" class="grey" data-rate-step="-0.05">－ 慢一點</button>
+                    <div class="rate-label" data-rate-label>速度 0.90×</div>
+                    <button type="button" class="grey" data-rate-step="0.05">＋ 快一點</button>
+                </div>
+            </div>
+            <button id="stopButton" class="grey" type="button">停止播放</button>
+            <p id="listenStatus" class="listen-note">請按上方按鈕播放廣東話詞音。</p>
+        </section>
+    </main>
+
+    <script>
+        'use strict';
+
+        const elements = {
+            pageTitle: document.getElementById('pageTitle'),
+            pageSubtitle: document.getElementById('pageSubtitle'),
+            creatorPanel: document.getElementById('creatorPanel'),
+            listenerPanel: document.getElementById('listenerPanel'),
+            hostBanner: document.getElementById('hostBanner'),
+            publicUrlSection: document.getElementById('publicUrlSection'),
+            publicUrlInput: document.getElementById('publicUrlInput'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            textInput: document.getElementById('textInput'),
+            charCount: document.getElementById('charCount'),
+            messageBox: document.getElementById('messageBox'),
+            previewButton: document.getElementById('previewButton'),
+            generateButton: document.getElementById('generateButton'),
+            qrContainer: document.getElementById('qrContainer'),
+            qrcode: document.getElementById('qrcode'),
+            testLink: document.getElementById('testLink'),
+            downloadButton: document.getElementById('downloadButton'),
+            listenWord: document.getElementById('listenWord'),
+            listenButton: document.getElementById('listenButton'),
+            stopButton: document.getElementById('stopButton'),
+            listenStatus: document.getElementById('listenStatus')
+        };
+
+        let cantoneseVoices = [];
+        let currentListenText = '';
+        let preferredVoiceName = '';
+        let currentUtterance = null;
+        let speechRate = 0.9;
+
+        function setRate(value) {
+            const v = Math.round(Math.min(1.6, Math.max(0.5, Number(value) || 0.9)) * 100) / 100;
+            speechRate = v;
+            document.querySelectorAll('[data-rate-label]').forEach(el => el.textContent = `速度 ${v.toFixed(2)}×`);
+            document.querySelectorAll('[data-rate]').forEach(b => b.classList.toggle('active', Math.abs(Number(b.dataset.rate) - v) < 0.001));
+        }
+
+        document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => setRate(b.dataset.rate)));
+        document.querySelectorAll('[data-rate-step]').forEach(b => b.addEventListener('click', () => setRate(speechRate + Number(b.dataset.rateStep))));
+
+        function isCantoneseVoice(voice) {
+            const lang = String(voice.lang || '').toLowerCase().replace('_', '-');
+            return lang === 'zh-hk' || lang.startsWith('yue');
+        }
+
+        function loadVoices() {
+            if (!('speechSynthesis' in window)) {
+                elements.voiceSelect.innerHTML = '<option value="">此瀏覽器不支援語音</option>';
+                elements.voiceSelect.disabled = true;
+                return;
+            }
+
+            const allVoices = window.speechSynthesis.getVoices();
+            cantoneseVoices = allVoices.filter(isCantoneseVoice);
+            elements.voiceSelect.innerHTML = '';
+
+            const autoOption = document.createElement('option');
+            autoOption.value = '';
+            autoOption.textContent = '自動選擇廣東話聲音';
+            elements.voiceSelect.appendChild(autoOption);
+
+            cantoneseVoices.forEach((voice) => {
+                const option = document.createElement('option');
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                elements.voiceSelect.appendChild(option);
+            });
+
+            if (preferredVoiceName && cantoneseVoices.some(v => v.name === preferredVoiceName)) {
+                elements.voiceSelect.value = preferredVoiceName;
+            }
+        }
+
+        function refreshCantoneseVoices() {
+            if (!('speechSynthesis' in window)) return [];
+            const allVoices = window.speechSynthesis.getVoices() || [];
+            cantoneseVoices = allVoices.filter(isCantoneseVoice);
+            return allVoices;
+        }
+
+        function chooseVoice(requestedName = '') {
+            const allVoices = refreshCantoneseVoices();
+            const exact = allVoices.find(v => v.name === requestedName);
+            if (exact) return exact;
+
+            const cantonese = allVoices.find(isCantoneseVoice);
+            if (cantonese) return cantonese;
+
+            // 最後後備：部分 Android 裝置只列出一般中文聲音。
+            return allVoices.find(v => String(v.lang || '').toLowerCase().startsWith('zh')) || null;
+        }
+
+        function speak(text, requestedVoice = '', statusElement = null) {
+            if (!text) return;
+
+            if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+                const message = '這個瀏覽器不支援語音播放，請改用 Safari、Chrome 或 Edge。';
+                if (statusElement) statusElement.textContent = message;
+                else showMessage(message);
+                return;
+            }
+
+            const synthesis = window.speechSynthesis;
+            const utterance = new SpeechSynthesisUtterance(text);
+            currentUtterance = utterance; // 防止部分手機瀏覽器過早回收語音物件
+            utterance.lang = 'zh-HK';
+            utterance.rate = speechRate;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            const voice = chooseVoice(requestedVoice);
+            if (voice) utterance.voice = voice;
+
+            if (statusElement) statusElement.textContent = '正在準備廣東話語音……';
+
+            utterance.onstart = () => {
+                if (statusElement) statusElement.textContent = '正在播放……';
+            };
+            utterance.onend = () => {
+                if (statusElement) statusElement.textContent = '播放完畢，可再次按播放。';
+                currentUtterance = null;
+            };
+            utterance.onerror = (event) => {
+                if (statusElement) {
+                    statusElement.textContent = '未能播放。請提高媒體音量、關閉靜音模式，再按一次「播放詞音」。';
+                } else {
+                    showMessage('未能播放語音，請檢查媒體音量或改用 Safari／Chrome。');
+                }
+                console.error('Speech synthesis error:', event.error || event);
+                currentUtterance = null;
+            };
+
+            // iPhone／iPad 在 cancel() 後立即 speak() 偶爾不會發聲，稍作延遲較穩定。
+            synthesis.cancel();
+            const isAppleMobile = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+            const startSpeech = () => {
+                try {
+                    synthesis.resume();
+                    synthesis.speak(utterance);
+                } catch (error) {
+                    if (statusElement) statusElement.textContent = '語音啟動失敗，請重新整理頁面後再試。';
+                    console.error(error);
+                }
+            };
+
+            if (isAppleMobile) setTimeout(startSpeech, 120);
+            else setTimeout(startSpeech, 40);
+        }
+
+        function encodeText(text) {
+            let binary = '';
+            if (typeof TextEncoder !== 'undefined') {
+                const bytes = new TextEncoder().encode(text);
+                for (const byte of bytes) binary += String.fromCharCode(byte);
+            } else {
+                binary = unescape(encodeURIComponent(text));
+            }
+            return btoa(binary)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/g, '');
+        }
+
+        function decodeText(payload) {
+            const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+            const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+            const binary = atob(padded);
+            if (typeof TextDecoder !== 'undefined') {
+                const bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+                return new TextDecoder().decode(bytes);
+            }
+            return decodeURIComponent(escape(binary));
+        }
+
+        function showMessage(message, type = 'error') {
+            elements.messageBox.textContent = message;
+            elements.messageBox.className = `${type} notice-box`;
+            elements.messageBox.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            elements.messageBox.classList.add('hidden');
+        }
+
+        function getBaseUrl() {
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                const current = new URL(window.location.href);
+                current.search = '';
+                current.hash = '';
+                return current;
+            }
+
+            const entered = elements.publicUrlInput.value.trim();
+            if (!entered) {
+                throw new Error('請先填寫已上載網頁的公開網址，手機才可以開啟播放頁。');
+            }
+
+            let url;
+            try {
+                url = new URL(entered);
+            } catch {
+                throw new Error('公開網址格式不正確，請輸入完整的 https:// 網址。');
+            }
+
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                throw new Error('公開網址必須以 http:// 或 https:// 開始。');
+            }
+
+            url.search = '';
+            url.hash = '';
+
+            // 網址必須指向本 HTML 檔案本身，而非資料夾或網站首頁，
+            // 否則手機開啟後找不到播放程式，會顯示「無法讀取字詞」。
+            if (!/\.html?$/i.test(url.pathname)) {
+                throw new Error('公開網址必須指向本 HTML 檔案本身（以 .html 結尾），例如 https://你的帳戶.github.io/cantonese.html，不能只填網站首頁或資料夾。');
+            }
+
+            localStorage.setItem('cantoneseQrPublicUrl', url.href);
+            return url;
+        }
+
+        function buildListenUrl(text) {
+            const url = getBaseUrl();
+            const payload = encodeText(text);
+            const selectedVoice = elements.voiceSelect.value;
+
+            // 查詢參數及網址片段各保留一份。即使寄存網站重新導向並移除其中一種，播放資料仍可讀取。
+            url.searchParams.set('mode', 'listen');
+            url.searchParams.set('p', payload);
+            if (selectedVoice) url.searchParams.set('v', selectedVoice);
+            url.searchParams.set('r', speechRate.toFixed(2));
+
+            const hashParams = new URLSearchParams();
+            hashParams.set('mode', 'listen');
+            hashParams.set('p', payload);
+            if (selectedVoice) hashParams.set('v', selectedVoice);
+            hashParams.set('r', speechRate.toFixed(2));
+            url.hash = hashParams.toString();
+
+            return url.href;
+        }
+
+        function generateQrCode() {
+            const text = elements.textInput.value.trim();
+            hideMessage();
+
+            if (!text) {
+                showMessage('請先輸入要播放的字詞或短句。');
+                elements.textInput.focus();
+                return;
+            }
+
+            if (typeof QRCode === 'undefined') {
+                showMessage('未能載入 QR Code 程式庫，請檢查網絡連線後重新開啟網頁。');
+                return;
+            }
+
+            try {
+                const targetUrl = buildListenUrl(text);
+
+                // 過長的網址會令 QR Code 太密，提醒使用者縮短內容。
+                if (targetUrl.length > 2600) {
+                    throw new Error('文字太長，QR Code 會過於密集。請把內容縮短至約 400 個中文字以內。');
+                }
+
+                elements.qrcode.innerHTML = '';
+                const qrSize = Math.min(340, Math.max(260, window.innerWidth - 80));
+
+                new QRCode(elements.qrcode, {
+                    text: targetUrl,
+                    width: qrSize,
+                    height: qrSize,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+
+                elements.testLink.href = targetUrl;
+                elements.qrContainer.classList.remove('hidden');
+                showMessage('QR Code 已成功產生。請先用「開啟測試頁」確認語音。', 'success');
+                elements.qrContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (error) {
+                showMessage(error instanceof Error ? error.message : '未能產生 QR Code。');
+            }
+        }
+
+        function downloadQrImage() {
+            const canvas = elements.qrcode.querySelector('canvas');
+            const image = elements.qrcode.querySelector('img');
+            let dataUrl = '';
+
+            if (canvas) {
+                const pad = Math.round(canvas.width * 0.1);
+                const out = document.createElement('canvas');
+                out.width = canvas.width + pad * 2; out.height = canvas.height + pad * 2;
+                const ctx = out.getContext('2d');
+                ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, out.width, out.height);
+                ctx.drawImage(canvas, pad, pad);
+                dataUrl = out.toDataURL('image/png');
+            }
+            else if (image) dataUrl = image.src;
+
+            if (!dataUrl) {
+                showMessage('找不到可下載的 QR Code 圖片，請重新產生。');
+                return;
+            }
+
+            const link = document.createElement('a');
+            link.download = 'cantonese-word-qrcode.png';
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function updateCounter() {
+            const length = elements.textInput.value.length;
+            elements.charCount.textContent = `${length} / 500`;
+            elements.charCount.classList.toggle('near-limit', length >= 450);
+        }
+
+        function enterListenerMode(params) {
+            let text = '';
+
+            try {
+                const payload = params.get('p');
+                if (payload) text = decodeText(payload);
+                else if (params.get('msg')) text = params.get('msg'); // 兼容舊版 QR Code
+            } catch (error) {
+                console.error('QR payload decode failed:', error);
+                text = '';
+            }
+
+            preferredVoiceName = params.get('v') || params.get('voice') || '';
+            if (params.get('r')) setRate(params.get('r'));
+
+            elements.creatorPanel.classList.add('hidden');
+            elements.listenerPanel.classList.remove('hidden');
+            elements.pageTitle.textContent = '廣東話詞音 🔊';
+            elements.pageSubtitle.textContent = '按下播放按鈕聆聽字詞讀音';
+
+            if (!text) {
+                elements.listenWord.textContent = '無法讀取字詞';
+                elements.listenButton.disabled = true;
+                elements.listenStatus.textContent = 'QR Code 內容可能不完整，請重新掃描。';
+                return;
+            }
+
+            currentListenText = text;
+            elements.listenWord.textContent = text;
+            document.title = `${text.slice(0, 18)}｜廣東話詞音`;
+        }
+
+        function getPlaybackParams() {
+            const queryParams = new URLSearchParams(window.location.search);
+            const hashText = window.location.hash.replace(/^#/, '');
+            const hashParams = new URLSearchParams(hashText);
+
+            // 優先採用仍然包含文字資料的一組。
+            if (queryParams.has('p') || queryParams.has('msg')) return queryParams;
+            if (hashParams.has('p') || hashParams.has('msg')) return hashParams;
+            if (queryParams.get('mode') === 'listen') return queryParams;
+            if (hashParams.get('mode') === 'listen') return hashParams;
+            return queryParams;
+        }
+
+        function initialise() {
+            const params = getPlaybackParams();
+            preferredVoiceName = params.get('v') || params.get('voice') || '';
+
+            loadVoices();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.addEventListener?.('voiceschanged', loadVoices);
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
+
+            if (params.get('mode') === 'listen' || params.has('p') || params.has('msg')) {
+                enterListenerMode(params);
+                return;
+            }
+
+            const onWeb = window.location.protocol === 'http:' ||
+                          window.location.protocol === 'https:';
+
+            elements.publicUrlInput.value = localStorage.getItem('cantoneseQrPublicUrl') || '';
+
+            if (onWeb) {
+                // 已在網站上執行：QR Code 會直接指向這一頁，毋須填寫網址。
+                elements.hostBanner.textContent =
+                    '本頁網址：' + window.location.origin + window.location.pathname;
+                elements.hostBanner.classList.remove('hidden');
+            } else {
+                // 本機檔案：手機無法開啟 file:// 路徑，必須先上載。
+                elements.publicUrlSection.classList.remove('hidden');
+                showMessage('目前以本機檔案（file://）開啟，手機不能讀取這種路徑。請先把本檔案上載至 GitHub Pages、Netlify Drop 或學校網站，然後在下方填寫公開網址。', 'notice');
+            }
+        }
+
+        elements.textInput.addEventListener('input', updateCounter);
+        elements.previewButton.addEventListener('click', () => {
+            const text = elements.textInput.value.trim();
+            if (!text) {
+                showMessage('請先輸入要試聽的字詞。');
+                return;
+            }
+            hideMessage();
+            speak(text, elements.voiceSelect.value);
+        });
+        elements.generateButton.addEventListener('click', generateQrCode);
+        elements.downloadButton.addEventListener('click', downloadQrImage);
+        elements.listenButton.addEventListener('click', () => {
+            refreshCantoneseVoices();
+            speak(currentListenText, preferredVoiceName, elements.listenStatus);
+        });
+        elements.stopButton.addEventListener('click', () => {
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            elements.listenStatus.textContent = '已停止播放。';
+        });
+
+        window.addEventListener('hashchange', () => {
+            const params = getPlaybackParams();
+            if (params.has('p') || params.has('msg')) enterListenerMode(params);
+        });
+
+        updateCounter();
+        setRate(0.9);
+        initialise();
+    </script>
+</body>
+</html>
